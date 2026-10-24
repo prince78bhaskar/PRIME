@@ -5,7 +5,8 @@ Pydantic models for chat requests, streaming chunks, health telemetry,
 and error responses for local Ollama interactions.
 """
 
-from typing import Any, Literal
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 

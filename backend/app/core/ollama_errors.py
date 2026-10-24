@@ -77,7 +77,7 @@ class OllamaHardwareLimitError(OllamaError):
         full_detail = (
             detail
             or f"Model '{model}' was rejected: {full_reason}. "
-            "P.R.I.M.E. restricts models to small quantized checkpoints (<=7B/8B, recommended 3B)."
+            "P.R.I.M.E. restricts models to checkpoints of at most 8B parameters (recommended 3B)."
         )
         message = f"Model '{model}' violates hardware safety constraints"
         super().__init__(message, detail=full_detail)

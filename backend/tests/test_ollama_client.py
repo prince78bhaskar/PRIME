@@ -12,10 +12,10 @@ Tests client behavior using mock httpx transports:
 - Stream cancellation
 """
 
-import asyncio
 import json
-import pytest
+
 import httpx
+import pytest
 
 from app.core.ollama_client import OllamaClient
 from app.core.ollama_errors import (
@@ -52,7 +52,7 @@ class TestHardwareSafetyGuardrails:
 
     def test_allowed_small_models(self) -> None:
         client = OllamaClient()
-        # Allowed models under 8B
+        # These tag labels do not exceed the configured limit.
         allowed = [
             "qwen2.5:3b-instruct-q4_K_M",
             "qwen2.5:3b",
@@ -60,10 +60,17 @@ class TestHardwareSafetyGuardrails:
             "llama3.2:1b",
             "phi3.5:mini",
             "qwen2.5:7b-instruct-q4_K_M",
+            "example:8b",
             "gemma2:2b",
         ]
         for model in allowed:
             client.validate_model_safety(model)  # Should not raise
+
+    def test_rejects_every_explicit_size_above_eight_billion(self) -> None:
+        client = OllamaClient()
+        for size in (9, 10, 11, 12, 13, 70):
+            with pytest.raises(OllamaHardwareLimitError):
+                client.validate_model_safety(f"example:{size}b")
 
     def test_disallowed_large_models(self) -> None:
         client = OllamaClient()
@@ -184,6 +191,11 @@ class TestChatCompletion:
     @pytest.mark.asyncio
     async def test_chat_success(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/show":
+                return httpx.Response(
+                    200,
+                    json={"model_info": {"general.parameter_count": 3_000_000_000}},
+                )
             payload = json.loads(request.read().decode())
             assert payload["model"] == "qwen2.5:3b-instruct-q4_K_M"
             assert payload["stream"] is False
@@ -219,7 +231,7 @@ class TestChatCompletion:
     @pytest.mark.asyncio
     async def test_chat_model_not_found(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/api/chat":
+            if request.url.path == "/api/show":
                 return httpx.Response(404, text="model 'missing:3b' not found")
             return httpx.Response(200, json={"models": []})
 
@@ -233,6 +245,66 @@ class TestChatCompletion:
             with pytest.raises(OllamaModelNotFoundError) as exc_info:
                 await client.chat(req)
             assert exc_info.value.model == "missing:3b"
+
+    @pytest.mark.asyncio
+    async def test_rejects_misleading_small_tag_using_ollama_metadata(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/show"
+            return httpx.Response(
+                200,
+                json={"model_info": {"general.parameter_count": 12_000_000_000}},
+            )
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as mock_http:
+            client = OllamaClient(http_client=mock_http)
+            req = ChatRequest(
+                messages=[ChatMessage(role="user", content="Hi")],
+                model="misleading-model:3b",
+            )
+            with pytest.raises(OllamaHardwareLimitError):
+                await client.chat(req)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("parameter_count", "is_allowed"),
+        [(8_000_000_000, True), (8_000_000_001, False)],
+    )
+    async def test_metadata_size_limit_boundary(
+        self,
+        parameter_count: int,
+        is_allowed: bool,
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={"model_info": {"general.parameter_count": parameter_count}},
+            )
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as mock_http:
+            client = OllamaClient(http_client=mock_http)
+            if is_allowed:
+                await client.validate_model_metadata("boundary:8b")
+            else:
+                with pytest.raises(OllamaHardwareLimitError):
+                    await client.validate_model_metadata("boundary:8b")
+
+    @pytest.mark.asyncio
+    async def test_rejects_model_when_parameter_metadata_is_ambiguous(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"details": {"parameter_size": "3B"}})
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as mock_http:
+            client = OllamaClient(http_client=mock_http)
+            req = ChatRequest(
+                messages=[ChatMessage(role="user", content="Hi")],
+                model="phi3.5:mini",
+            )
+            with pytest.raises(OllamaHardwareLimitError) as exc_info:
+                await client.chat(req)
+            assert "verifiable parameter count" in (exc_info.value.detail or "")
 
     @pytest.mark.asyncio
     async def test_chat_connection_error(self) -> None:
@@ -274,6 +346,11 @@ class TestChatStreaming:
         body = "\n".join(lines).encode("utf-8")
 
         def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/show":
+                return httpx.Response(
+                    200,
+                    json={"model_info": {"general.parameter_count": 3_000_000_000}},
+                )
             return httpx.Response(200, content=body)
 
         transport = httpx.MockTransport(handler)

@@ -8,7 +8,7 @@ Log output directory is created automatically on setup.
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -17,7 +17,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -63,10 +63,7 @@ def setup_logging(
 
     # Select formatter
     formatter: logging.Formatter
-    if log_format == "json":
-        formatter = JSONFormatter()
-    else:
-        formatter = TextFormatter()
+    formatter = JSONFormatter() if log_format == "json" else TextFormatter()
 
     # Console handler (stderr)
     console_handler = logging.StreamHandler(sys.stderr)

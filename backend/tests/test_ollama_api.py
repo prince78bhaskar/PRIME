@@ -8,8 +8,7 @@ Covers:
 - Error handling (503 Service Unavailable, 404 Model Not Found, 422 Hardware Limit, 504 Timeout)
 """
 
-import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient

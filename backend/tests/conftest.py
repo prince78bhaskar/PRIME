@@ -4,8 +4,6 @@ Shared pytest fixtures for P.R.I.M.E. backend tests.
 Provides reusable fixtures for settings, database, and HTTPX test client.
 """
 
-import os
-import tempfile
 from collections.abc import Generator
 from pathlib import Path
 

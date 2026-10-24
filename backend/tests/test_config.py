@@ -8,10 +8,9 @@ Covers:
 - Settings factory function
 """
 
-import os
-from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.config import Settings, get_settings
 
@@ -76,15 +75,15 @@ class TestPortValidation:
     """Verify port number validation."""
 
     def test_port_zero_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(port=0)
 
     def test_port_negative_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(port=-1)
 
     def test_port_too_high_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings(port=70000)
 
     def test_port_boundary_low(self) -> None:

@@ -33,10 +33,9 @@ from app.schemas.ollama import (
 
 logger = logging.getLogger(__name__)
 
-# Pattern detecting models that exceed the 4GB VRAM / 16GB RAM budget.
-# Models with >= 13B, 14B, 30B, 32B, 70B, 72B, 405B parameters are rejected.
+# Explicit model tags above 8B are rejected early; Ollama metadata is authoritative.
 _DISALLOWED_MODEL_PATTERN = re.compile(
-    r"\b(1[3-9]b|[2-9]\d+b|\d{3,}b)\b",
+    r"\b(?:9|[1-9]\d|\d{3,})b\b",
     re.IGNORECASE,
 )
 
@@ -83,7 +82,7 @@ class OllamaClient:
             self._client = None
 
     def validate_model_safety(self, model: str) -> None:
-        """Ensure the requested model conforms to local 4GB VRAM constraints.
+        """Reject model tags that explicitly exceed the parameter ceiling.
 
         Raises:
             OllamaHardwareLimitError: If model exceeds hardware capacity.
@@ -94,6 +93,52 @@ class OllamaClient:
                 reason=(
                     f"Model '{model}' indicates parameter size exceeding {self.max_allowed_param_billions}B, "
                     "which exceeds the 4GB GPU VRAM allocation limit."
+                ),
+            )
+
+    async def validate_model_metadata(self, model: str) -> None:
+        """Verify the model's actual parameter count using Ollama metadata."""
+        client = await self.get_client()
+        try:
+            response = await client.post("/api/show", json={"model": model})
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise OllamaConnectionError(base_url=self.base_url) from exc
+        except httpx.TimeoutException as exc:
+            raise OllamaTimeoutError(timeout_seconds=self.timeout_seconds) from exc
+
+        if response.status_code == 404:
+            available_models = [item.name for item in await self._safe_list_models()]
+            raise OllamaModelNotFoundError(model=model, available_models=available_models)
+        if response.status_code != 200:
+            raise OllamaError(
+                message=f"Unable to inspect Ollama model metadata (HTTP {response.status_code})",
+                detail=response.text,
+            )
+
+        model_info = response.json().get("model_info", {})
+        parameter_count = (
+            model_info.get("general.parameter_count")
+            if isinstance(model_info, dict)
+            else None
+        )
+        if (
+            isinstance(parameter_count, bool)
+            or not isinstance(parameter_count, (int, float))
+            or parameter_count <= 0
+        ):
+            raise OllamaHardwareLimitError(
+                model=model,
+                reason=(
+                    "Ollama did not provide a verifiable parameter count; "
+                    "ambiguous model metadata is rejected."
+                ),
+            )
+        if parameter_count > self.max_allowed_param_billions * 1_000_000_000:
+            raise OllamaHardwareLimitError(
+                model=model,
+                reason=(
+                    f"Model metadata reports {parameter_count / 1_000_000_000:g}B parameters, "
+                    f"exceeding the {self.max_allowed_param_billions:g}B limit."
                 ),
             )
 
@@ -131,7 +176,7 @@ class OllamaClient:
                     available_models=[],
                     error=f"Ollama returned HTTP status {response.status_code}",
                 )
-        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+        except (httpx.ConnectError, httpx.ConnectTimeout):
             logger.warning("Ollama service unreachable", extra={"base_url": self.base_url})
             return OllamaHealthResponse(
                 status="unavailable",
@@ -229,6 +274,7 @@ class OllamaClient:
             payload["options"]["num_predict"] = request.max_tokens
 
         try:
+            await self.validate_model_metadata(target_model)
             response = await client.post(
                 "/api/chat",
                 json=payload,
@@ -308,6 +354,7 @@ class OllamaClient:
             payload["options"]["num_predict"] = request.max_tokens
 
         try:
+            await self.validate_model_metadata(target_model)
             async with client.stream(
                 "POST",
                 "/api/chat",

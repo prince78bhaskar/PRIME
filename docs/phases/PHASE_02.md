@@ -34,7 +34,7 @@ To respect the target hardware bounds (**16 GB System RAM, NVIDIA GPU with 4 GB 
 +---------------------------------------------------------------------------------------+
 | OllamaClient (app/core/ollama_client.py)                                              |
 |                                                                                       |
-|   1. Hardware Guardrail: Check model against parameter budget (reject >=13B/14B/70B)  |
+|   1. Hardware Guardrail: verify Ollama parameter metadata and reject models above 8B |
 |   2. Timeout Enforcement: Per-request or global configurable timeout                  |
 |   3. Cancellation Handling: Graceful exit on client disconnect                        |
 |   4. Error Translation: httpx exceptions -> typed OllamaError domains                 |

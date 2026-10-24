@@ -8,7 +8,6 @@ Covers:
 - Error handling for disconnected state
 """
 
-import sqlite3
 from pathlib import Path
 
 import pytest

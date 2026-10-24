@@ -16,10 +16,12 @@ from fastapi.responses import JSONResponse
 
 from app.api.health import router as health_router
 from app.api.ollama import router as ollama_router
+from app.api.voice import router as voice_router
 from app.core.config import Settings, get_settings
 from app.core.database import DatabaseManager
 from app.core.logging import setup_logging
 from app.core.ollama_client import OllamaClient
+from app.core.voice_service import VoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             timeout_seconds=float(settings.ollama_timeout_seconds),
         )
         app.state.ollama_client = ollama_client
+
+    if getattr(app.state, "voice_service", None) is None:
+        app.state.voice_service = VoiceService(settings)
 
     # Record startup time for uptime tracking
     app.state.start_time = time.time()
@@ -141,6 +146,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ── Routes ───────────────────────────────────────────────────
     app.include_router(health_router)
     app.include_router(ollama_router)
+    app.include_router(voice_router)
 
     return app
 

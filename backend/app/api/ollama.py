@@ -8,9 +8,10 @@ Strictly routes all inference to the local daemon — no cloud fallbacks or exte
 import json
 import logging
 from collections.abc import AsyncIterator
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.core.config import Settings, get_settings
 from app.core.ollama_client import OllamaClient
@@ -26,7 +27,6 @@ from app.schemas.ollama import (
     ChatResponse,
     ErrorResponse,
     OllamaHealthResponse,
-    OllamaModelInfo,
     OllamaModelsListResponse,
 )
 
@@ -49,6 +49,9 @@ def get_ollama_client(request: Request) -> OllamaClient:
     return client
 
 
+OllamaClientDependency = Annotated[OllamaClient, Depends(get_ollama_client)]
+
+
 @router.get(
     "/health",
     summary="Local Ollama Service Health Check",
@@ -56,7 +59,7 @@ def get_ollama_client(request: Request) -> OllamaClient:
     response_model=OllamaHealthResponse,
 )
 async def check_ollama_health(
-    client: OllamaClient = Depends(get_ollama_client),
+    client: OllamaClientDependency,
 ) -> OllamaHealthResponse:
     """Check connectivity to local Ollama daemon."""
     return await client.check_health()
@@ -73,7 +76,7 @@ async def check_ollama_health(
     },
 )
 async def list_local_models(
-    client: OllamaClient = Depends(get_ollama_client),
+    client: OllamaClientDependency,
 ) -> OllamaModelsListResponse:
     """List installed models in local Ollama."""
     try:
@@ -108,7 +111,7 @@ async def list_local_models(
 )
 async def chat_completion(
     chat_req: ChatRequest,
-    client: OllamaClient = Depends(get_ollama_client),
+    client: OllamaClientDependency,
 ):
     """Handle chat completion request to local Ollama."""
     if chat_req.stream:

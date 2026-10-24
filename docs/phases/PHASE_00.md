@@ -36,7 +36,7 @@ To guarantee stability and prevent CUDA Out-Of-Memory (OOM) fatal aborts:
 6. **Embeddings & Vector Search**: `bge-small-en-v1.5` runs on CPU via ONNX (<120 MB RAM, 0 MB VRAM).
 
 > [!WARNING]
-> **No Large Models**: Models exceeding 7B parameters (e.g. 13B, 14B, 32B, 70B) or unquantized FP16 models MUST NOT be loaded into GPU memory. Fine-tuning workloads (LoRA/QLoRA backpropagation) MUST NOT be executed on this local device.
+> **No Large Models**: Models exceeding 8B parameters (e.g. 9B, 13B, 14B, 32B, 70B) or unquantized FP16 models MUST NOT be loaded into GPU memory. Fine-tuning workloads (LoRA/QLoRA backpropagation) MUST NOT be executed on this local device.
 
 ---
 

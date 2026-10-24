@@ -73,7 +73,7 @@ curl http://127.0.0.1:8000/api/v1/ollama/models
 
 P.R.I.M.E. routes 100% of model inference through the local Ollama daemon (`http://127.0.0.1:11434`).
 * **Zero Cloud Fallback**: No third-party AI keys or external API dependencies are supported or permitted.
-* **4GB VRAM Safety Ceiling**: Model selection is validated against hardware guardrails. Large models (>8B parameters like 14B, 32B, 70B) are rejected with HTTP 422 to prevent GPU Out-of-Memory crashes.
+* **4GB VRAM Safety Ceiling**: Explicitly oversized model tags are rejected early, then Ollama's local parameter-count metadata must confirm a model is at most 8B. Models above 8B or without verifiable metadata are rejected with HTTP 422.
 * **Recommended Models**: `qwen2.5:3b-instruct-q4_K_M` (default), `llama3.2:3b-instruct`, or `phi3.5:mini`.
 
 ### Ollama API Endpoints
@@ -98,6 +98,16 @@ curl -X POST http://127.0.0.1:8000/api/v1/ollama/chat `
   -H "Content-Type: application/json" `
   -d '{"messages": [{"role": "user", "content": "Introduce yourself."}], "stream": true}'
 ```
+
+---
+
+## Local Voice Interaction
+
+Voice processing is an optional local pipeline, separate from the Ollama chat endpoint. The browser requests microphone permission only when the user presses and holds the microphone button. Audio is posted only to a loopback backend and is not sent to external speech services. Push-to-talk is supported; wake-word and always-on listening are not.
+
+Install the optional voice dependencies and download the local models before going offline. Instructions, model sources, configuration, endpoint contracts, and the end-to-end acceptance checklist are in [Phase 04](../docs/phases/PHASE_04.md).
+
+The voice endpoints are `GET /api/v1/voice/status`, `POST /api/v1/voice/transcribe`, and `POST /api/v1/voice/synthesize`. English (`en`) and Hindi (`hi`) use Faster-Whisper and Piper models configured independently through `PRIME_VOICE_*` variables.
 
 ---
 

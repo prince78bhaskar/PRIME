@@ -21,17 +21,17 @@ import time
 
 # Ensure backend root is in python path
 from pathlib import Path
+
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.core.ollama_client import OllamaClient
-from app.core.ollama_errors import (
-    OllamaConnectionError,
+from app.core.ollama_client import OllamaClient  # noqa: E402
+from app.core.ollama_errors import (  # noqa: E402
     OllamaHardwareLimitError,
     OllamaModelNotFoundError,
 )
-from app.schemas.ollama import ChatMessage, ChatRequest
+from app.schemas.ollama import ChatMessage, ChatRequest  # noqa: E402
 
 
 async def run_smoke_test(base_url: str, model_tag: str | None) -> int:
@@ -80,6 +80,7 @@ async def run_smoke_test(base_url: str, model_tag: str | None) -> int:
     print("\n[2/4] Verifying hardware safety constraint (4GB VRAM ceiling)...")
     try:
         client.validate_model_safety(selected_model)
+        await client.validate_model_metadata(selected_model)
         print("  -> Model passed hardware safety check (within 4GB VRAM envelope).")
     except OllamaHardwareLimitError as exc:
         print(f"  [ERROR] Model rejected by hardware guardrail: {exc.message}")

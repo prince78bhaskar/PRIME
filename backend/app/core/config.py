@@ -12,7 +12,6 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # Resolve project root (3 levels up from this file: core/ -> app/ -> backend/)
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 _PROJECT_ROOT = _BACKEND_ROOT.parent
@@ -77,6 +76,40 @@ class Settings(BaseSettings):
         description="Default Ollama model tag",
     )
     ollama_timeout_seconds: int = Field(default=30, description="Ollama request timeout")
+
+    # ── Local voice pipeline ────────────────────────────────────
+    voice_stt_model_path: Path = Field(
+        default=_PROJECT_ROOT / "models" / "faster-whisper-small",
+        description="Path to a downloaded Faster-Whisper model directory",
+    )
+    voice_stt_device: Literal["cpu", "cuda"] = Field(
+        default="cpu",
+        description="Inference device for local speech recognition",
+    )
+    voice_stt_compute_type: str = Field(
+        default="int8",
+        description="CTranslate2 compute type for local speech recognition",
+    )
+    voice_tts_en_model_path: Path = Field(
+        default=_PROJECT_ROOT / "models" / "voice" / "en_US-lessac-medium.onnx",
+        description="Path to the Piper English ONNX voice model",
+    )
+    voice_tts_hi_model_path: Path = Field(
+        default=_PROJECT_ROOT / "models" / "voice" / "hi_IN-pratham-medium.onnx",
+        description="Path to the Piper Hindi ONNX voice model",
+    )
+    voice_max_audio_bytes: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1024,
+        le=100 * 1024 * 1024,
+        description="Maximum recorded audio payload accepted by the local STT endpoint",
+    )
+    voice_max_text_chars: int = Field(
+        default=5000,
+        ge=1,
+        le=20000,
+        description="Maximum text length accepted by the local TTS endpoint",
+    )
 
     @field_validator("port")
     @classmethod
