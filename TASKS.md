@@ -125,26 +125,38 @@ flowchart TD
 
 ---
 
-### Phase 01: Core Environment & Local Model Runtime (Status: PLANNED)
+### Phase 01: Core Backend & SQLite Database (Status: DONE)
 
 | Task ID | Title | Status | Predecessor | Acceptance Criteria |
 | :--- | :--- | :---: | :---: | :--- |
-| `TASK-01-ENV-01` | Python Virtual Env & Scaffolding | `PLANNED` | `TASK-00-DOC-04` | Python 3.11 venv created, backend directory scaffolded, locked dependencies in `requirements.txt`. |
-| `TASK-01-CORE-01`| Hardware Probe & VRAM Guard | `PLANNED` | `TASK-01-ENV-01` | Script detects Windows OS, physical RAM, NVIDIA GPU VRAM, and rejects models exceeding 3.2 GB VRAM. |
-| `TASK-01-CORE-02`| Ollama Client & Health Check | `PLANNED` | `TASK-01-CORE-01` | Async HTTP client connecting to `localhost:11434`, tests connection and model availability (`qwen2.5:3b`). |
-| `TASK-01-CORE-03`| FastAPI Gateway & WebSockets | `PLANNED` | `TASK-01-CORE-02` | FastAPI app starts on port 8000, provides `/health` endpoint and `/ws/events` bidirectional WebSocket. |
-| `TASK-01-TEST-01`| Phase 01 Pytest Suite | `PLANNED` | `TASK-01-CORE-03` | Automated unit tests for hardware probe, Ollama client mock, and FastAPI routes with 100% pass rate. |
+| `TASK-01-ENV-01` | Python Virtual Env & Scaffolding | **DONE** | `TASK-00-DOC-04` | Python 3.11+ venv created, backend directory scaffolded, locked dependencies in `requirements.txt`. |
+| `TASK-01-CORE-01`| SQLite WAL Database Manager | **DONE** | `TASK-01-ENV-01` | SQLite database manager with WAL mode, schema version tracking, and baseline tables. |
+| `TASK-01-CORE-02`| FastAPI App Factory & Health Probe | **DONE** | `TASK-01-CORE-01` | FastAPI app starts on port 8000, provides `/health` liveness and readiness probe with DB state. |
+| `TASK-01-CORE-03`| Structured Logging & Configuration | **DONE** | `TASK-01-CORE-02` | JSON and text structured log formatters and Pydantic Settings with env var overrides. |
+| `TASK-01-TEST-01`| Phase 01 Pytest Suite | **DONE** | `TASK-01-CORE-03` | Automated unit tests for config, database, health, and logging with 49 tests passing. |
 
 ---
 
-### Phase 02: Multi-Agent Orchestration Protocol (Status: BACKLOG)
+### Phase 02: Local AI Runtime Integration (Status: DONE)
 
 | Task ID | Title | Status | Predecessor | Acceptance Criteria |
 | :--- | :--- | :---: | :---: | :--- |
-| `TASK-02-AGENT-01` | Base Specialist Agent Class | `BACKLOG` | `TASK-01-CORE-03` | Abstract agent base class handling prompt assembly, tool schema parsing, and execution loop. |
-| `TASK-02-AGENT-02` | Master Orchestrator Dispatcher | `BACKLOG` | `TASK-02-AGENT-01` | Master Agent classifies user query and dispatches typed JSON payloads to appropriate specialists. |
-| `TASK-02-AGENT-03` | Four Specialist Agent Implementations | `BACKLOG` | `TASK-02-AGENT-02` | Implement Research, System, Code, and Personal agent classes with domain prompts. |
-| `TASK-02-AGENT-04` | Loop Detection & Turn Guardrail | `BACKLOG` | `TASK-02-AGENT-03` | Orchestrator halts repeated tool loops and enforces max 5-turn depth per subtask. |
+| `TASK-02-CORE-01` | Async Ollama Client | **DONE** | `TASK-01-CORE-02` | Async HTTP client connecting to `127.0.0.1:11434`, tests connection and model availability. |
+| `TASK-02-CORE-02` | Hardware Safety Guardrails | **DONE** | `TASK-02-CORE-01` | Rejects models exceeding 4GB VRAM envelope (>8B parameters) with HTTP 422. Never auto-pulls large models. |
+| `TASK-02-CORE-03` | Chat Completion & SSE Streaming | **DONE** | `TASK-02-CORE-02` | `/api/v1/ollama/chat` supporting non-streaming and Server-Sent Events (SSE) streaming. |
+| `TASK-02-CORE-04` | Real-Model Smoke Test & Offline Probe | **DONE** | `TASK-02-CORE-03` | Standalone script `smoke_test_ollama.py` verifying real Ollama connection and graceful offline handling. |
+| `TASK-02-TEST-01` | Phase 02 Pytest Suite | **DONE** | `TASK-02-CORE-04` | 24 unit & integration tests covering client, error mappings (503, 504, 404, 422), and API routes. |
+
+---
+
+### Phase 03: Multi-Agent Orchestration Protocol (Status: PLANNED)
+
+| Task ID | Title | Status | Predecessor | Acceptance Criteria |
+| :--- | :--- | :---: | :---: | :--- |
+| `TASK-03-AGENT-01` | Base Specialist Agent Class | `PLANNED` | `TASK-02-CORE-03` | Abstract agent base class handling prompt assembly, tool schema parsing, and execution loop. |
+| `TASK-03-AGENT-02` | Master Orchestrator Dispatcher | `BACKLOG` | `TASK-03-AGENT-01` | Master Agent classifies user query and dispatches typed JSON payloads to appropriate specialists. |
+| `TASK-03-AGENT-03` | Four Specialist Agent Implementations | `BACKLOG` | `TASK-03-AGENT-02` | Implement Research, System, Code, and Personal agent classes with domain prompts. |
+| `TASK-03-AGENT-04` | Loop Detection & Turn Guardrail | `BACKLOG` | `TASK-03-AGENT-03` | Orchestrator halts repeated tool loops and enforces max 5-turn depth per subtask. |
 
 ---
 
